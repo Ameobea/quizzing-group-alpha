@@ -1,95 +1,109 @@
-import React, { Component } from "react";
-import {
-  Button,
-  FormControl,
-  ControlLabel,
-  FormGroup,
-  HelpBlock,
-} from "react-bootstrap";
-import { compose, withState } from 'recompose';
+import React from "react";
+import { Button } from "react-bootstrap";
+import PropTypes from "prop-types";
+import { withState } from "recompose";
+import * as R from "ramda";
 
 import "./App.css";
 import { AnswerField } from "./answerField.js";
 import { QuestionField } from "./question.js";
 import "./answerField.css";
 
-const PopulatedAnswerField = ({ values, setValues, name, ...props }) => (
-  <AnswerField
-    onChange={e => setValues({ ...values, [name]: e.target.value })}
-    value={values[name]}
-    name={name}
-    {...props}
-  />
-)
+const styles = {
+  addAnswerForm: {
+    flexDirection: "row",
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderColor: "black",
+    paddingBottom: 10
+  },
+};
 
-const PopulatedQuestionField = ({ values, setValues, name, ...props }) => (
-    <QuestionField
-      onChange={e => setValues({ ...values, [name]: e.target.value })}
-      value={values[name]}
-      name={name}
-      {...props}
-    />
-)
+const AddAnswerForm = withState("answerContent", "setAnswerContent")(
+  ({ addAnswer, answerContent, setAnswerContent }) => (
+    <div style={styles.addAnswerForm}>
+      {"Add additional Answer:"}
 
-const Answers = ({ answerNames, setanswerNames, values, setValues }) => (
+      <div style={{ flexDirection: "row", paddingTop: 5 }}>
+        <input
+          name='newAnswer'
+          value={answerContent}
+          onChange={e => setAnswerContent(e.target.value)}
+          style={{ marginRight: 10 }}
+        />
+
+        <Button
+          onClick={R.partial(addAnswer, [answerContent])}
+        >
+          Add Answer
+        </Button>
+      </div>
+    </div>
+  )
+);
+
+AddAnswerForm.propTypes = {
+  addAnswer: PropTypes.func,
+};
+
+const Answers = ({ answers, setAnswers }) => (
   <div>
-    {answerNames.map(({ name, label}) => (
-      <PopulatedAnswerField
-        values={values}
-        setValues={setValues}
-        name={name}
-        label={label}
+    {answers.map((content, i) => (
+      <AnswerField
+        onChange={e => {
+          const newAnswers = R.adjust(() => e.target.value, i, answers);
+          setAnswers(newAnswers);
+        }}
+        key={i}
+        value={content}
+        name={`answer${i}`}
+        label={`${(i + 10).toString(36)}. `}
       />
     ))}
 
-    <Button onClick={() => setanswerNames([
-      ...answerNames,
-      {
-        name: `answer${answerNames.length + 1}`,
-        label: `Answer ${answerNames.length + 1}`,
-      }
-    ])}>
-      Add Answer
-    </Button>
+    <AddAnswerForm addAnswer={answerContent => setAnswers([...answers, answerContent])} />
   </div>
-)
+);
+
+Answers.propTypes = {
+  answers: PropTypes.arrayOf("string"),
+  setAnswers: PropTypes.func,
+};
 
 const handleSubmit = values => {
-  alert(JSON.stringify(values))
-}
+  alert(JSON.stringify(values));
+};
 
-const Form = ({ values, setValues, answerNames, setanswerNames }) => (
+const QuestionForm = ({ state, setState }) => (
   <div style={{ width: 520, marginLeft: 20 }}>
     <form>
-    <PopulatedQuestionField
-      label = "Question"
-      name = 'question'
-      values={values}
-      setValues={setValues}/>
+      <QuestionField
+        label = "Question"
+        name = 'question'
+        value={state.question}
+        onChange={e => setState({ ...state, question: e.target.value })}
+      />
+
       <div style={{ width: 500, marginLeft: 20 }}>
         <Answers
-          answerNames={answerNames}
-          setanswerNames={setanswerNames}
-          values={values}
-          setValues={setValues}
+          answers={state.answers}
+          setAnswers={newAnswers => setState({ ...state, answers: newAnswers })}
         />
       </div>
 
       <Button
         bsStyle="primary"
-        onClick={() => handleSubmit(values)}
+        onClick={() => handleSubmit(state)}
       >
         Submit
       </Button>
     </form>
   </div>
-)
+);
 
-export default compose(
-  withState('values', 'setValues', {}),
-  withState('answerNames', 'setanswerNames', [
-    {label: 'Answer 1', name: 'answer1'},
-    {label: 'Answer 2', name: 'answer2'},
-    {label: 'Answer 3', name: 'answer3'},
-  ])
-)(Form);
+const initialState = {
+  question: "",
+  answers: R.times(() => "", 3),
+};
+
+export default withState("state", "setState", initialState)(QuestionForm);
